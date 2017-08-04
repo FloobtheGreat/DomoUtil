@@ -75,6 +75,9 @@ def uploadPart(arglist):
             try:
                 
                 execution = dmo.streams.upload_part(arglist[1], arglist[2],arglist[3], csv = open(arglist[4], 'rb'))
+                
+                if execution is None:
+                    raise Exception('Error uploading part ' + str(arglist[3]) + ' Retrying...')
                     
             except Exception as e:
                 print(e)
@@ -222,8 +225,8 @@ def listStreams():
 
 
 def main(args):
-    client_id = r'yourclientid'
-    client_secret = r'yourclientsecret'
+    client_id = r'your client id'
+    client_secret = r'your client secret'
     args = args
     try:
         
