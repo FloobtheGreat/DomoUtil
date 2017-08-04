@@ -17,22 +17,23 @@ from pydomo.streams import UpdateMethod, CreateStreamRequest
 import pydomo.streams as streams
 import logging
 import asyncio
-import aioodbc
+#import aioodbc
 import concurrent.futures
 import time
 
 
+count = 0
+dtype_df = None
 
 
-def setupDomo():
-    client_id = r'client id'
-    client_secret = r'client secret'
+
+def setupDomo(cid, csec):
     api_host = 'api.domo.com'
     use_https = True
     logger_name = 'foo'
     logger_level = logging.WARNING
     global domo
-    domo = Domo(client_id, client_secret, api_host, use_https, logger_name, logger_level)
+    domo = Domo(cid, csec, api_host, use_https, logger_name, logger_level)
     
 
 def buildfilelist(directory):
@@ -74,14 +75,10 @@ def uploadPart(arglist):
             try:
                 
                 execution = dmo.streams.upload_part(arglist[1], arglist[2],arglist[3], csv = open(arglist[4], 'rb'))
-                
-                
-                if execution.currentState != 'ACTIVE':
-                    time.sleep(5)
-                    raise Exception('There was a failure on this part. Trying again.')
                     
             except Exception as e:
                 print(e)
+                #logging.warning(str(arglist[2]) + ' Failed on part ' + str(arglist[3]) + '... retrying in 5 sec')
                 time.sleep(5)
                 continue
             break
@@ -130,9 +127,9 @@ def deleteTemp(tempdir):
     print('Deleting Temp Directory...')
     shutil.rmtree(tempdir)
 
-def readData(sql, temp_dir, rowsper):
+def readData(sql, temp_dir, rowsper=100000):
     print('Reading data...')
-    cnxn = pyodbc.connect('connection String')    
+    cnxn = pyodbc.connect('DRIVER={NetezzaSQL};SERVER=SRVDWHITP01;DATABASE=EDW_SPOKE;UID=pairwin;PWD=pairwin;TIMEOUT=0')   
     i = 0
     for chunk in pd.read_sql(sql, cnxn, chunksize=rowsper) :
         if i == 0:
@@ -144,6 +141,49 @@ def readData(sql, temp_dir, rowsper):
     print('Data read complete...')
     return dtype_df
 
+
+def writePart(data, tdir):
+    #print(data)
+    global count 
+    global dtype_df
+    if count == 0:
+            dtype_df = data.dtypes.reset_index()
+            dtype_df.columns = ["Count", "Column Type"]
+    #print(df)
+    file = tdir + '\\file' + str(count)
+    print(file)
+    data.to_csv(file, index=False, compression='gzip', header=False)
+    count += 1
+
+
+
+# try fetch many...
+#https://stackoverflow.com/questions/7555680/create-db-connection-and-maintain-on-multiple-processes-multiprocessing
+def readDataAsync(sql, temp_dir, rowsper=100000):    
+    print('Reading data...')
+    cnxn = pyodbc.connect('DRIVER={NetezzaSQL};SERVER=SRVDWHITP01;DATABASE=EDW_SPOKE;UID=pairwin;PWD=pairwin;TIMEOUT=0') 
+        
+    loop = asyncio.get_event_loop()
+
+
+    async def readChunk(tdir, rowsper):
+    
+        with concurrent.futures.ThreadPoolExecutor(max_workers=24) as executor:
+      
+            loop = asyncio.get_event_loop()
+            futures = [
+                loop.run_in_executor(
+                    executor, 
+                    writePart,
+                    chunk,
+                    temp_dir
+                )
+                for chunk in pd.read_sql(sql, cnxn, chunksize=rowsper)
+            ]
+            for response in await asyncio.gather(*futures):
+                pass
+    
+    loop.run_until_complete(readChunk(temp_dir, rowsper))
 
     
 
@@ -182,6 +222,8 @@ def listStreams():
 
 
 def main(args):
+    client_id = r'yourclientid'
+    client_secret = r'yourclientsecret'
     args = args
     try:
         
@@ -191,13 +233,14 @@ def main(args):
             rowsper = 100000
         
         temp_dir = makeTempDir()
-        setupDomo()
+        setupDomo(client_id, client_secret)
         
     
         
         if args.sqlfile is not None:
             sql = getSQL(args.sqlfile)    
-            schemadf = readData(sql, temp_dir, rowsper)
+#            schemadf = readData(sql, temp_dir, rowsper)
+            readDataAsync(sql, temp_dir, rowsper)
             fl = buildfilelist(temp_dir)
         
         if args.name is not None:
@@ -229,7 +272,7 @@ def main(args):
             
         
         if args.create:
-            SCHEMA = Schema(buildSchema(schemadf))  
+            SCHEMA = Schema(buildSchema(dtype_df))  
             strm = createStream(name, SCHEMA)
             exe = createExecution(strm)
             uploadStream(exe, strm, fl)
@@ -250,7 +293,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--sqlfile", help="SQL File for processing")
     parser.add_argument("-c", "--create", help="Create Stream", action="store_true")
-    parser.add_argument("--exec", help="Execute existing Stream by giving the dataSourceId")
+    parser.add_argument("-e","--exec", help="Execute existing Stream by giving the dataSourceId")
     parser.add_argument("-n", "--name", help="Name of Stream you want to create")
     parser.add_argument("-d", "--delete", help="Id of Stream you want to delete")
     parser.add_argument("-r", "--rows", help="Rows per chunk (default is 100000)")
@@ -262,20 +305,27 @@ if __name__ == "__main__":
 #setupDomo()
 #temp_dir = makeTempDir()    
 #name = 'TEST_STREAM_PI'
-#sql = getSQL(r'B:\Phillip\git\SqlSources\NZ SEGMENTED CUSTOMERS - SM - SVR.sql')
-#schemadf = readData(sql, temp_dir, 100000)
+#sql = getSQL(r'C:\users\pairwin\Desktop\testsql.sql')
+#schemadf = readData(sql, temp_dir, 10000)
+#readDataAsync(sql, temp_dir)
 #fl = buildfilelist(temp_dir)
 #SCHEMA = Schema(buildSchema(schemadf))
 #strm = createStream(name, SCHEMA)
-
+#
 #strlst = listStreams()
 #for i in range(len(strlst)):
-#    if strlst[i].dataSet.id == 'c922f7e8-95df-45b1-90ab-bf3a1109c856':
+#    if strlst[i].dataSet.id == 'df66cb75-d2ea-47ac-a4aa-8de48e22c1b3':
 #        strm_id = strlst[i].id
 #strm = domo.streams.get(strm_id) #stream id
 #
 #exe = createExecution(strm)
-#arglist = [strm.id, exe.id, 1, r'C:\Temp\tmpabgqwwow\file0.gzip' ]
+#arglist = [strm.id, exe.id, 1, r'C:\Temp\tmp4rignsc0\file0.gzip' ]
+#
+#for i in range(20):
+#    execution = domo.streams.upload_part(arglist[0], arglist[1],arglist[2], csv = open(arglist[3], 'rb'))
+#    print(execution)
+#    
+#
 #uploadPart(arglist)
 #domo.streams.commit_execution(strm.id, exe.id)
 #deleteTemp(temp_dir)
