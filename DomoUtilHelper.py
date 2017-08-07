@@ -15,6 +15,7 @@ from pydomo.users import CreateUserRequest
 from random import randint
 import tempfile
 import shutil
+import os
 import logging
 
 class DomoSDK:
@@ -37,6 +38,15 @@ class DomoSDK:
         self.logger = self.domo.logger
         
         
+    def getSQL(path):
+        print('Building Query...')
+        with open(path, 'r') as myfile:
+            #data=myfile.read().replace('\n', ' ').replace(';', ' ').replace('"', '\"').replace("'", "\'")
+            data = ' '.join(myfile.read().split())
+            return data
+        
+        
+        
     def makeTempDir():
         print('Making Temp Directory...')
         tmp = tempfile.mkdtemp()
@@ -49,6 +59,21 @@ class DomoSDK:
         shutil.rmtree(tempdir)    
         
         
+    def buildfilelist(directory):
+        file_list = []
+        for path, subdirs, files in os.walk(directory):
+            for name in files:
+                file_list.append(os.path.join(path, name))
+        return file_list
+    
+    
+        
+    def listStreams(self):
+        streams = self.domo.streams
+        limit = 1000
+        offset = 0
+        stream_list = streams.list(limit, offset)
+        return stream_list
         
     def createStream(self, name, schem):
         streams = self.domo.streams
@@ -60,3 +85,10 @@ class DomoSDK:
         stream = streams.create(stream_request)
         print('Stream ID: ' + str(stream.id))
         return stream
+    
+    
+    def createExecution(self, strm):
+        print('Creating execution...')
+        streams = self.domo.streams
+        execution = streams.create_execution(strm.id)
+        return execution
