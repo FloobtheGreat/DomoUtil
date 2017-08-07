@@ -13,6 +13,8 @@ from pydomo.groups import CreateGroupRequest
 from pydomo.streams import UpdateMethod, CreateStreamRequest
 from pydomo.users import CreateUserRequest
 from random import randint
+import tempfile
+import shutil
 import logging
 
 class DomoSDK:
@@ -33,3 +35,28 @@ class DomoSDK:
 
         self.domo = Domo(client_id, client_secret, api_host, logger_name='foo', logger_level=logging.INFO, use_https=True)
         self.logger = self.domo.logger
+        
+        
+    def makeTempDir():
+        print('Making Temp Directory...')
+        tmp = tempfile.mkdtemp()
+        return tmp
+    
+    
+
+    def deleteTemp(tempdir):
+        print('Deleting Temp Directory...')
+        shutil.rmtree(tempdir)    
+        
+        
+        
+    def createStream(self, name, schem):
+        streams = self.domo.streams
+        print('Creating Stream ' + name + '...')
+        dsr = DataSetRequest()
+        dsr.name = name
+        dsr.schema = schem
+        stream_request = CreateStreamRequest(dsr, UpdateMethod.REPLACE)
+        stream = streams.create(stream_request)
+        print('Stream ID: ' + str(stream.id))
+        return stream
