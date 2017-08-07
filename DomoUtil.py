@@ -1,57 +1,21 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Jul 25 09:33:08 2017
-
+Confidential
 @author: pairwin
 """
 
-import os
-import pyodbc
-import pandas as pd
-import tempfile
-import shutil
+import DomoUtilHelper as dmo
 import argparse
-from pydomo import Domo
-from pydomo.datasets import DataSetRequest, Schema, Column, ColumnType
-from pydomo.streams import UpdateMethod, CreateStreamRequest
-import pydomo.streams as streams
-import logging
-import asyncio
-#import aioodbc
-import concurrent.futures
-import time
-
 
 count = 0
 dtype_df = None
 
 
 
-def setupDomo(cid, csec):
-    api_host = 'api.domo.com'
-    use_https = True
-    logger_name = 'foo'
-    logger_level = logging.WARNING
-    global domo
-    domo = Domo(cid, csec, api_host, use_https, logger_name, logger_level)
-    
 
-def buildfilelist(directory):
-    file_list = []
-    for path, subdirs, files in os.walk(directory):
-        for name in files:
-            file_list.append(os.path.join(path, name))
-    return file_list
 
-def createStream(name, schem):
-    print('Creating Stream ' + name + '...')
-    dsr = DataSetRequest()
-    dsr.name = name
-    dsr.schema = schem
-    stream_request = CreateStreamRequest(dsr, UpdateMethod.REPLACE)
-    stream = domo.streams.create(stream_request)
-    print('Stream ID: ' + str(stream.id))
-    return stream
+
 
 def searchStream(name):
     print('Creating stream...')
@@ -63,10 +27,7 @@ def deleteStream(stream):
     domo.streams.delete(stream.id)
     domo.datasets.delete(stream.dataSet.id)
 
-def createExecution(strm):
-    print('Creating execution...')
-    execution = domo.streams.create_execution(strm.id)
-    return execution
+
 
 def uploadPart(arglist):
     dmo = arglist[0]
@@ -121,14 +82,7 @@ def uploadStream(execution, stream, filelist):
     domo.streams.commit_execution(stream.id, execution.id)
     print('Completed Stream Upload in ' + str(time.time()-t) + ' secs...')
 
-def makeTempDir():
-    print('Making Temp Directory...')
-    tmp = tempfile.mkdtemp()
-    return tmp
 
-def deleteTemp(tempdir):
-    print('Deleting Temp Directory...')
-    shutil.rmtree(tempdir)
 
 def readData(sql, temp_dir, rowsper=100000):
     print('Reading data...')
@@ -194,12 +148,7 @@ def readDataAsync(sql, temp_dir, rowsper=100000):
         
         
         
-def getSQL(path):
-    print('Building Query...')
-    with open(path, 'r') as myfile:
-        #data=myfile.read().replace('\n', ' ').replace(';', ' ').replace('"', '\"').replace("'", "\'")
-        data = ' '.join(myfile.read().split())
-        return data
+
 
 def buildSchema(df):
     print('Building Schema...')
@@ -217,16 +166,11 @@ def buildSchema(df):
             sclist.append(Column(ColumnType.STRING, row[1]))
     return sclist
 
-def listStreams():
-    limit = 1000
-    offset = 0
-    stream_list = domo.streams.list(limit, offset)
-    return stream_list
+
 
 
 def main(args):
-    client_id = r'your client id'
-    client_secret = r'your client secret'
+    
     args = args
     try:
         
@@ -235,36 +179,36 @@ def main(args):
         else:
             rowsper = 100000
         
-        temp_dir = makeTempDir()
-        setupDomo(client_id, client_secret)
+        domo = dmo.domoSDK()
+        temp_dir = domo.makeTempDir()
         
     
         
         if args.sqlfile is not None:
-            sql = getSQL(args.sqlfile)    
+            sql = domo.getSQL(args.sqlfile)    
 #            schemadf = readData(sql, temp_dir, rowsper)
             readDataAsync(sql, temp_dir, rowsper)
-            fl = buildfilelist(temp_dir)
+            fl = domo.buildfilelist(temp_dir)
         
         if args.name is not None:
             name = args.name
             
         if args.exec is not None:
             dataSourceId = args.exec
-            strlst = listStreams()
+            strlst = domo.listStreams()
             for i in range(len(strlst)):
                 if strlst[i].dataSet.id == dataSourceId:
                     strm_id = strlst[i].id
 
             strm = domo.streams.get(strm_id) #stream id
             print('Updating ' + strm.dataSet.name)
-            exe = createExecution(strm)
+            exe = domo.createExecution(strm)
             uploadStream(exe, strm, fl)
             
         if args.delete is not None:
             dataSourceId = args.delete
 
-            strlst = listStreams()
+            strlst = domo.listStreams()
             for i in range(len(strlst)):
                 if strlst[i].dataSet.id == dataSourceId:
                     strm_id = strlst[i].id
@@ -285,7 +229,7 @@ def main(args):
 
         
     finally:
-        deleteTemp(temp_dir)
+       domo.deleteTemp(temp_dir)
     
     
     
