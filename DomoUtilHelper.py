@@ -23,6 +23,7 @@ import time
 import concurrent.futures
 import asyncio
 
+
 class DomoSDK:
     def __init__(self):
         # Docs: https://developer.domo.com/docs/domo-apis/getting-started
@@ -69,13 +70,12 @@ class DomoSDK:
         shutil.rmtree(tempdir)    
         
         
-    def buildfilelist(directory):
+    def buildfilelist(self, directory):
         file_list = []
         for path, subdirs, files in os.walk(directory):
             for name in files:
                 file_list.append(os.path.join(path, name))
-        return file_list
-    
+        return file_list    
     
         
     def listStreams(self):
@@ -105,22 +105,36 @@ class DomoSDK:
         self.datasets.delete(stream.dataSet.id)
         
         
-    def readData(self, sql, temp_dir, rowsper=100000):
-        self.logger.info('Reading data...')
-        cnxn = pyodbc.connect('DRIVER={NetezzaSQL};SERVER=SRVDWHITP01;DATABASE=EDW_SPOKE;UID=pairwin;PWD=pairwin;TIMEOUT=0')   
-        i = 0
-        for chunk in pd.read_sql(sql, cnxn, chunksize=rowsper) :
-            if i == 0:
-                dtype_df = chunk.dtypes.reset_index()
-                dtype_df.columns = ["Count", "Column Type"]
-            chunk.to_csv(temp_dir+'\\file'+str(i)+'.gzip',index=False, compression='gzip', header=False)
-            self.logger.info(temp_dir+'\\file'+str(i))
-            i+=1
-        self.logger.info('Data read complete...')
-        return dtype_df
+#    def readData(self, sql, temp_dir, rowsper=100000):
+#        self.logger.info('Reading data...')
+#        cnxn = pyodbc.connect('DRIVER={NetezzaSQL};SERVER=SRVDWHITP01;DATABASE=EDW_SPOKE;UID=pairwin;PWD=pairwin;TIMEOUT=0')   
+#        i = 0
+#        for chunk in pd.read_sql(sql, cnxn, chunksize=rowsper) :
+#            if i == 0:
+#                dtype_df = chunk.dtypes.reset_index()
+#                dtype_df.columns = ["Count", "Column Type"]
+#            chunk.to_csv(temp_dir+'\\file'+str(i)+'.gzip',index=False, compression='gzip', header=False)
+#            self.logger.info(temp_dir+'\\file'+str(i))
+#            i+=1
+#        self.logger.info('Data read complete...')
+#        return dtype_df
     
 
-        
+    def uploadPart(self, arglist):            
+        for i in range(5):
+                try:
+                    
+                    execution = self.streams.upload_part(arglist[0], arglist[1],arglist[2], csv = open(arglist[3], 'rb'))
+                    
+                    if execution is not None:
+                        self.logger.info('Response: ' + str(execution))
+                        
+                except Exception as e:
+                    #self.logger.error(e)
+                    #logging.warning(str(arglist[2]) + ' Failed on part ' + str(arglist[3]) + '... retrying in 5 sec')
+                    time.sleep(5)
+                    continue
+                break    
         
     def uploadStream(self, execution, stream, filelist):
         self.logger.info('Starting Upload')
@@ -131,24 +145,9 @@ class DomoSDK:
             i+=1
             args.append([stream.id, execution.id, i, file])
     
-        def uploadPart(self, arglist):
-            
-            for i in range(5):
-                    try:
-                        
-                        execution = self.streams.upload_part(arglist[0], arglist[1],arglist[2], csv = open(arglist[3], 'rb'))
-                        
-                        if execution is not None:
-                            self.logger.info('Response: ' + str(execution))
-                            
-                    except Exception as e:
-                        self.logger.info(e)
-                        #logging.warning(str(arglist[2]) + ' Failed on part ' + str(arglist[3]) + '... retrying in 5 sec')
-                        time.sleep(5)
-                        continue
-                    break
+        
                 
-        async def upload(self):
+        async def upload(self, args):
         
             with concurrent.futures.ThreadPoolExecutor(max_workers=24) as executor:
           
@@ -156,8 +155,7 @@ class DomoSDK:
                 futures = [
                     loop.run_in_executor(
                         executor, 
-                        uploadPart,
-                        self,
+                        self.uploadPart,
                         arg
                     )
                     for arg in args
@@ -165,14 +163,27 @@ class DomoSDK:
                 for response in await asyncio.gather(*futures):
                     pass
         
-        
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(upload())
+        try:
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(upload(args))
+        except Exception as e:
+            self.logger.error(e)
         
             
         self.streams.commit_execution(stream.id, execution.id)
         self.logger.info('Completed Stream Upload in ' + str(time.time()-t) + ' secs...')
     
+    def writePart(self, data, tdir):
+        #print(data)
+        
+        if self.count == 0:
+                self.dtype_df = data.dtypes.reset_index()
+                self.dtype_df.columns = ["Count", "Column Type"]
+        #print(df)
+        file = tdir + '\\file' + str(self.count)
+        self.logger.info(file)
+        data.to_csv(file, index=False, compression='gzip', header=False)
+        self.count += 1
     
 
     
@@ -185,19 +196,9 @@ class DomoSDK:
         loop = asyncio.get_event_loop()
         
         
-        def writePart(self, data, tdir):
-            #print(data)
-            
-            if self.count == 0:
-                    self.dtype_df = data.dtypes.reset_index()
-                    self.dtype_df.columns = ["Count", "Column Type"]
-            #print(df)
-            file = tdir + '\\file' + str(self.count)
-            self.logger.info(file)
-            data.to_csv(file, index=False, compression='gzip', header=False)
-            self.count += 1
         
-        async def readChunk(tdir, rowsper):
+        
+        async def readChunk(self, tdir, rowsper):
         
             with concurrent.futures.ThreadPoolExecutor(max_workers=24) as executor:
           
@@ -205,8 +206,7 @@ class DomoSDK:
                 futures = [
                     loop.run_in_executor(
                         executor, 
-                        writePart,
-                        self,
+                        self.writePart,
                         chunk,
                         temp_dir
                     )
@@ -219,10 +219,10 @@ class DomoSDK:
         
 
 
-    def buildSchema(df):
+    def buildSchema(self):
         self.logger.info('Building Schema...')
         sclist = list()
-        for row in df.itertuples():
+        for row in self.dtype_df.itertuples():
             if str(row[2]) == 'int64':
                 sclist.append(Column(ColumnType.LONG, row[1]))
             elif str(row[2]) == 'float64': 
