@@ -30,7 +30,7 @@ def main(args):
         if args.sqlfile is not None:
             sql = domo.getSQL(args.sqlfile)    
 #            schemadf = readData(sql, temp_dir, rowsper)
-            domo.readDataAsync(sql, temp_dir, rowsper)
+            domo.readData(sql, temp_dir, rowsper)
             fl = domo.buildfilelist(temp_dir)
         
         if args.name is not None:

@@ -105,19 +105,19 @@ class DomoSDK:
         self.datasets.delete(stream.dataSet.id)
         
         
-#    def readData(self, sql, temp_dir, rowsper=100000):
-#        self.logger.info('Reading data...')
-#        cnxn = pyodbc.connect('DRIVER={NetezzaSQL};SERVER=SRVDWHITP01;DATABASE=EDW_SPOKE;UID=pairwin;PWD=pairwin;TIMEOUT=0')   
-#        i = 0
-#        for chunk in pd.read_sql(sql, cnxn, chunksize=rowsper) :
-#            if i == 0:
-#                dtype_df = chunk.dtypes.reset_index()
-#                dtype_df.columns = ["Count", "Column Type"]
-#            chunk.to_csv(temp_dir+'\\file'+str(i)+'.gzip',index=False, compression='gzip', header=False)
-#            self.logger.info(temp_dir+'\\file'+str(i))
-#            i+=1
-#        self.logger.info('Data read complete...')
-#        return dtype_df
+    def readData(self, sql, temp_dir, rowsper=100000):
+        self.logger.info('Reading data...')
+        cnxn = pyodbc.connect('DRIVER={NetezzaSQL};SERVER=SRVDWHITP01;DATABASE=EDW_SPOKE;UID=pairwin;PWD=pairwin;TIMEOUT=0')   
+        i = 0
+        for chunk in pd.read_sql(sql, cnxn, chunksize=rowsper) :
+            if i == 0:
+                dtype_df = chunk.dtypes.reset_index()
+                dtype_df.columns = ["Count", "Column Type"]
+            chunk.to_csv(temp_dir+'\\file'+str(i)+'.gzip',index=False, compression='gzip', header=False)
+            self.logger.info(temp_dir+'\\file'+str(i))
+            i+=1
+        self.logger.info('Data read complete...')
+        return dtype_df
     
 
     def uploadPart(self, arglist):            
@@ -165,7 +165,7 @@ class DomoSDK:
         
         try:
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(upload(args))
+            loop.run_until_complete(upload(self, args))
         except Exception as e:
             self.logger.error(e)
         
