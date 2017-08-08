@@ -33,19 +33,23 @@ class DomoSDK:
         client_secret = r'4fdf56a78af8ac9910ed482f5ed170f46eaca70b65b30b957f25c56b72da7687'
         api_host = 'api.domo.com'
 
-        ch = logging.StreamHandler()
+        ch = logging.FileHandler('DomoUtilLog.log', 'w')
         ch.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         ch.setFormatter(formatter)
+        
         logging.getLogger().addHandler(ch)
 
-        self.domo = Domo(client_id, client_secret, api_host, logger_name='foo', logger_level=logging.INFO, use_https=True)
+        self.domo = Domo(client_id, client_secret, api_host, logger_name='Py3', logger_level=logging.INFO, use_https=True)
         self.logger = self.domo.logger
         self.streams = self.domo.streams
+        self.count = 0
+        self.dtype_df = None
+        self.logger.info('Initiating Domo Instance')
         
         
-    def getSQL(path):
-        print('Building Query...')
+    def getSQL(self, path):
+        self.logger.info('Building Query...')
         with open(path, 'r') as myfile:
             #data=myfile.read().replace('\n', ' ').replace(';', ' ').replace('"', '\"').replace("'", "\'")
             data = ' '.join(myfile.read().split())
@@ -53,15 +57,15 @@ class DomoSDK:
         
         
         
-    def makeTempDir():
-        print('Making Temp Directory...')
+    def makeTempDir(self):
+        self.logger.info('Making Temp Directory...')
         tmp = tempfile.mkdtemp()
         return tmp
     
     
 
-    def deleteTemp(tempdir):
-        print('Deleting Temp Directory...')
+    def deleteTemp(self, tempdir):
+        self.logger.info('Deleting Temp Directory...')
         shutil.rmtree(tempdir)    
         
         
@@ -81,18 +85,18 @@ class DomoSDK:
         return stream_list
         
     def createStream(self, name, schem):
-        print('Creating Stream ' + name + '...')
+        self.logger.info('Creating Stream ' + name + '...')
         dsr = DataSetRequest()
         dsr.name = name
         dsr.schema = schem
         stream_request = CreateStreamRequest(dsr, UpdateMethod.REPLACE)
         stream = self.streams.create(stream_request)
-        print('Stream ID: ' + str(stream.id))
+        self.logger.info('Stream ID: ' + str(stream.id))
         return stream
     
     
     def createExecution(self, strm):
-        print('Creating execution...')
+        self.logger.info('Creating execution...')
         execution = self.streams.create_execution(strm.id)
         return execution
     
@@ -101,8 +105,8 @@ class DomoSDK:
         self.datasets.delete(stream.dataSet.id)
         
         
-    def readData(sql, temp_dir, rowsper=100000):
-        print('Reading data...')
+    def readData(self, sql, temp_dir, rowsper=100000):
+        self.logger.info('Reading data...')
         cnxn = pyodbc.connect('DRIVER={NetezzaSQL};SERVER=SRVDWHITP01;DATABASE=EDW_SPOKE;UID=pairwin;PWD=pairwin;TIMEOUT=0')   
         i = 0
         for chunk in pd.read_sql(sql, cnxn, chunksize=rowsper) :
@@ -110,16 +114,16 @@ class DomoSDK:
                 dtype_df = chunk.dtypes.reset_index()
                 dtype_df.columns = ["Count", "Column Type"]
             chunk.to_csv(temp_dir+'\\file'+str(i)+'.gzip',index=False, compression='gzip', header=False)
-            #print(temp_dir+'\\file'+str(i))
+            self.logger.info(temp_dir+'\\file'+str(i))
             i+=1
-        print('Data read complete...')
+        self.logger.info('Data read complete...')
         return dtype_df
     
 
         
         
     def uploadStream(self, execution, stream, filelist):
-        print('Starting Upload')
+        self.logger.info('Starting Upload')
         t = time.time()
         i = 0
         args = list()
@@ -134,15 +138,16 @@ class DomoSDK:
                         
                         execution = self.streams.upload_part(arglist[0], arglist[1],arglist[2], csv = open(arglist[3], 'rb'))
                         
-                        if execution is None:
-                            raise Exception('Error uploading part ' + str(arglist[3]) + ' Retrying...')
+                        if execution is not None:
+                            self.logger.info('Response: ' + str(execution))
                             
                     except Exception as e:
-                        print(e)
+                        self.logger.info(e)
                         #logging.warning(str(arglist[2]) + ' Failed on part ' + str(arglist[3]) + '... retrying in 5 sec')
                         time.sleep(5)
                         continue
                     break
+                
         async def upload(self):
         
             with concurrent.futures.ThreadPoolExecutor(max_workers=24) as executor:
@@ -166,21 +171,15 @@ class DomoSDK:
         
             
         self.streams.commit_execution(stream.id, execution.id)
-        print('Completed Stream Upload in ' + str(time.time()-t) + ' secs...')
-    
-    
-    
-    
+        self.logger.info('Completed Stream Upload in ' + str(time.time()-t) + ' secs...')
     
     
 
     
-    
-    
     # try fetch many...
     #https://stackoverflow.com/questions/7555680/create-db-connection-and-maintain-on-multiple-processes-multiprocessing
     def readDataAsync(self, sql, temp_dir, rowsper=100000):    
-        print('Reading data...')
+        self.logger.info('Reading data...')
         cnxn = pyodbc.connect('DRIVER={NetezzaSQL};SERVER=SRVDWHITP01;DATABASE=EDW_SPOKE;UID=pairwin;PWD=pairwin;TIMEOUT=0') 
             
         loop = asyncio.get_event_loop()
@@ -188,16 +187,15 @@ class DomoSDK:
         
         def writePart(self, data, tdir):
             #print(data)
-            global count 
-            global dtype_df
-            if count == 0:
-                    dtype_df = data.dtypes.reset_index()
-                    dtype_df.columns = ["Count", "Column Type"]
+            
+            if self.count == 0:
+                    self.dtype_df = data.dtypes.reset_index()
+                    self.dtype_df.columns = ["Count", "Column Type"]
             #print(df)
-            file = tdir + '\\file' + str(count)
-            print(file)
+            file = tdir + '\\file' + str(self.count)
+            self.logger.info(file)
             data.to_csv(file, index=False, compression='gzip', header=False)
-            count += 1
+            self.count += 1
         
         async def readChunk(tdir, rowsper):
         
@@ -222,7 +220,7 @@ class DomoSDK:
 
 
     def buildSchema(df):
-        print('Building Schema...')
+        self.logger.info('Building Schema...')
         sclist = list()
         for row in df.itertuples():
             if str(row[2]) == 'int64':

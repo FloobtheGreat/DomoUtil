@@ -9,22 +9,6 @@ import DomoUtilHelper as dmo
 import argparse
 from pydomo import Schema
 
-count = 0
-dtype_df = None
-
-
-
-
-
-
-
-def searchStream(name):
-    print('Creating stream...')
-    stream_prop = 'dataSource: ' + name
-    stream = streams.search(stream_prop)
-    return stream
-
-
 
 
 
@@ -38,7 +22,7 @@ def main(args):
         else:
             rowsper = 100000
         
-        domo = dmo.domoSDK()
+        domo = dmo.DomoSDK()
         temp_dir = domo.makeTempDir()
         
     
