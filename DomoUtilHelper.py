@@ -45,7 +45,6 @@ class DomoSDK:
         self.logger = self.domo.logger
         self.streams = self.domo.streams
         self.count = 0
-        self.dtype_df = None
         self.logger.info('Initiating Domo Instance')
         self.dataname = None
         
@@ -221,10 +220,10 @@ class DomoSDK:
         
 
 
-    def buildSchema(self):
+    def buildSchema(self, dtype_df):
         self.logger.info('Building Schema...')
         sclist = list()
-        for row in self.dtype_df.itertuples():
+        for row in dtype_df.itertuples():
             if str(row[2]) == 'int64':
                 sclist.append(Column(ColumnType.LONG, row[1]))
             elif str(row[2]) == 'float64': 

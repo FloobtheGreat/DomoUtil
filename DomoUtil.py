@@ -30,7 +30,7 @@ def main(args):
         if args.sqlfile is not None:
             sql = domo.getSQL(args.sqlfile)    
 #            schemadf = readData(sql, temp_dir, rowsper)
-            domo.readData(sql, temp_dir, rowsper)
+            dtype_df = domo.readData(sql, temp_dir, rowsper)
             fl = domo.buildfilelist(temp_dir)
         
         if args.name is not None:
@@ -62,7 +62,7 @@ def main(args):
             
         
         if args.create:
-            SCHEMA = Schema(domo.buildSchema())  
+            SCHEMA = Schema(domo.buildSchema(dtype_df))  
             strm = domo.createStream(name, SCHEMA)
             exe = domo.createExecution(strm)
             domo.uploadStream(exe, strm, fl)
