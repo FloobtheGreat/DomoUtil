@@ -55,7 +55,7 @@ def main(args):
             for i in range(len(strlst)):
                 if strlst[i].dataSet.id == dataSourceId:
                     strm_id = strlst[i].id
-
+                    domo.setName(strlst[i].dataSet.name)
             strm = domo.streams.get(strm_id) #stream id
             print('Deleting ' + strm.dataSet.name)
             domo.deleteStream(strm)
@@ -73,7 +73,8 @@ def main(args):
         
     finally:
        domo.deleteTemp(temp_dir)
-    
+       domo.closeLogger()
+       
     
     
     

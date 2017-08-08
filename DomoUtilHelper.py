@@ -22,7 +22,7 @@ import pyodbc
 import time
 import concurrent.futures
 import asyncio
-
+from datetime import datetime
 
 class DomoSDK:
     def __init__(self):
@@ -47,6 +47,7 @@ class DomoSDK:
         self.count = 0
         self.dtype_df = None
         self.logger.info('Initiating Domo Instance')
+        self.dataname = None
         
         
     def getSQL(self, path):
@@ -88,6 +89,7 @@ class DomoSDK:
         self.logger.info('Creating Stream ' + name + '...')
         dsr = DataSetRequest()
         dsr.name = name
+        self.dataname = name
         dsr.schema = schem
         stream_request = CreateStreamRequest(dsr, UpdateMethod.REPLACE)
         stream = self.streams.create(stream_request)
@@ -235,3 +237,10 @@ class DomoSDK:
                 sclist.append(Column(ColumnType.STRING, row[1]))
         return sclist
 
+    def setName(self, nm):
+        self.dataname = nm
+
+
+    def closeLogger(self):
+        logging.shutdown()
+        shutil.copy2('DomoUtilLog.log', 'logs/DomoUtilLog'+ str(self.dataname) + '_' + datetime.now().strftime('%Y%m%d_%H_%M') + '.log')
