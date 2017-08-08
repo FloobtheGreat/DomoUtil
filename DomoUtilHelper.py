@@ -215,7 +215,7 @@ class DomoSDK:
                 for response in await asyncio.gather(*futures):
                     pass
         
-        loop.run_until_complete(readChunk(temp_dir, rowsper))
+        loop.run_until_complete(readChunk(self, temp_dir, rowsper))
         
 
 

@@ -5,7 +5,7 @@ Confidential
 @author: pairwin
 """
 
-import DomoUtilHelper as dmo
+from DomoUtilHelper import DomoSDK 
 import argparse
 from pydomo.datasets import Schema
 
@@ -22,7 +22,7 @@ def main(args):
         else:
             rowsper = 100000
         
-        domo = dmo.DomoSDK()
+        domo = DomoSDK()
         temp_dir = domo.makeTempDir()
         
     
@@ -92,32 +92,32 @@ if __name__ == "__main__":
 
     
     
-domo = dmo.DomoSDK()
-temp_dir = dmo.makeTempDir()    
-name = 'TEST_STREAM_PI'
-sql = dmo.getSQL(r'C:\users\pairwin\Desktop\testsql.sql')
-schemadf = dmo.readDataAsync(sql, temp_dir, 10000)
-readDataAsync(sql, temp_dir)
-fl = buildfilelist(temp_dir)
-SCHEMA = Schema(buildSchema(schemadf))
-strm = createStream(name, SCHEMA)
-
-strlst = listStreams()
-for i in range(len(strlst)):
-    if strlst[i].dataSet.id == 'df66cb75-d2ea-47ac-a4aa-8de48e22c1b3':
-        strm_id = strlst[i].id
-strm = domo.streams.get(strm_id) #stream id
-
-exe = createExecution(strm)
-arglist = [strm.id, exe.id, 1, r'C:\Temp\tmp4rignsc0\file0.gzip' ]
-
-for i in range(20):
-    execution = domo.streams.upload_part(arglist[0], arglist[1],arglist[2], csv = open(arglist[3], 'rb'))
-    print(execution)
-    
-
-uploadPart(arglist)
-domo.streams.commit_execution(strm.id, exe.id)
-deleteTemp(temp_dir)
-domo.streams.delete(strm.id)
-domo.datasets.delete(strm.datasets.id)
+#domo = DomoSDK()
+#temp_dir = domo.makeTempDir()    
+#name = 'TEST_STREAM_PI'
+#sql = domo.getSQL(r'C:\users\pairwin\Desktop\testsql.sql')
+#schemadf = domo.readDataAsync(sql, temp_dir, 10000)
+#domo.readDataAsync(sql, temp_dir)
+#fl = domo.buildfilelist(temp_dir)
+#SCHEMA = Schema(domo.buildSchema(schemadf))
+#strm = domo.createStream(name, SCHEMA)
+#
+#strlst = listStreams()
+#for i in range(len(strlst)):
+#    if strlst[i].dataSet.id == 'df66cb75-d2ea-47ac-a4aa-8de48e22c1b3':
+#        strm_id = strlst[i].id
+#strm = domo.streams.get(strm_id) #stream id
+#
+#exe = createExecution(strm)
+#arglist = [strm.id, exe.id, 1, r'C:\Temp\tmp4rignsc0\file0.gzip' ]
+#
+#for i in range(20):
+#    execution = domo.streams.upload_part(arglist[0], arglist[1],arglist[2], csv = open(arglist[3], 'rb'))
+#    print(execution)
+#    
+#
+#uploadPart(arglist)
+#domo.streams.commit_execution(strm.id, exe.id)
+#deleteTemp(temp_dir)
+#domo.streams.delete(strm.id)
+#domo.datasets.delete(strm.datasets.id)
