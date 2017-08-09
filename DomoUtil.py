@@ -45,6 +45,7 @@ def main(args):
 
             strm = domo.streams.get(strm_id) #stream id
             print('Updating ' + strm.dataSet.name)
+            domo.dataname = strm.dataSet.name
             exe = domo.createExecution(strm)
             domo.uploadStream(exe, strm, fl)
             
@@ -55,8 +56,8 @@ def main(args):
             for i in range(len(strlst)):
                 if strlst[i].dataSet.id == dataSourceId:
                     strm_id = strlst[i].id
-                    domo.setName(strlst[i].dataSet.name)
             strm = domo.streams.get(strm_id) #stream id
+            domo.dataname = strm.dataSet.name
             print('Deleting ' + strm.dataSet.name)
             domo.deleteStream(strm)
             
@@ -64,6 +65,7 @@ def main(args):
         if args.create:
             SCHEMA = Schema(domo.buildSchema(dtype_df))  
             strm = domo.createStream(name, SCHEMA)
+            domo.dataname = name
             exe = domo.createExecution(strm)
             domo.uploadStream(exe, strm, fl)
     

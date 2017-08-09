@@ -44,6 +44,7 @@ class DomoSDK:
         self.domo = Domo(client_id, client_secret, api_host, logger_name='Py3', logger_level=logging.INFO, use_https=True)
         self.logger = self.domo.logger
         self.streams = self.domo.streams
+        self.datasets = self.domo.datasets
         self.count = 0
         self.logger.info('Initiating Domo Instance')
         self.dataname = None
@@ -131,7 +132,7 @@ class DomoSDK:
                         self.logger.info('Response: ' + str(execution))
                         
                 except Exception as e:
-                    #self.logger.error(e)
+                    self.logger.error(e)
                     #logging.warning(str(arglist[2]) + ' Failed on part ' + str(arglist[3]) + '... retrying in 5 sec')
                     time.sleep(5)
                     continue
