@@ -248,4 +248,4 @@ class DomoSDK:
     def closeLogger(self):
         logging.shutdown()
         shutil.copy2('DomoUtilLog.log', 'logs/DomoUtilLog'+ str(self.dataname) + '_' + datetime.now().strftime('%Y%m%d_%H_%M') + '.log')
-        os.remove('DomoUtil.log')
+        os.remove('DomoUtilLog.log')
