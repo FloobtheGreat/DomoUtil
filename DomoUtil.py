@@ -20,7 +20,7 @@ def main(args):
         if args.rows is not None:
             rowsper = int(args.rows)
         else:
-            rowsper = 100000
+            rowsper = 300000
         
         domo = DomoSDK()
         temp_dir = domo.makeTempDir()

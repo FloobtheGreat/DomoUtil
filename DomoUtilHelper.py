@@ -23,16 +23,20 @@ import time
 import concurrent.futures
 import asyncio
 from datetime import datetime
+import configparser
 
 class DomoSDK:
     def __init__(self):
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        client_id = config['DEFAULT']['clientid']
+        client_secret = config['DEFAULT']['clientsecret']
+        api_host = config['DEFAULT']['api_host']
+        self.databasecon = config['DEFAULT']['databasecon']
         # Docs: https://developer.domo.com/docs/domo-apis/getting-started
         # Create an API client on https://developer.domo.com
         # Initialize the Domo SDK with your API client id/secret
         # If you have multiple API clients you would like to use, simply initialize multiple Domo() instances
-        client_id = r'8927c0c4-9d69-4d00-b7b3-6a228ee8b488'
-        client_secret = r'4fdf56a78af8ac9910ed482f5ed170f46eaca70b65b30b957f25c56b72da7687'
-        api_host = 'api.domo.com'
 
         ch = logging.FileHandler('DomoUtilLog.log', 'w')
         ch.setLevel(logging.INFO)
@@ -41,7 +45,7 @@ class DomoSDK:
         
         logging.getLogger().addHandler(ch)
 
-        self.domo = Domo(client_id, client_secret, api_host, logger_name='Py3', logger_level=logging.INFO, use_https=True)
+        self.domo = Domo(client_id, client_secret, api_host, logger_name='BPS Domo Utility', logger_level=logging.INFO, use_https=True)
         self.logger = self.domo.logger
         self.streams = self.domo.streams
         self.datasets = self.domo.datasets
@@ -109,7 +113,7 @@ class DomoSDK:
         
     def readData(self, sql, temp_dir, rowsper=100000):
         self.logger.info('Reading data...')
-        cnxn = pyodbc.connect('DRIVER={NetezzaSQL};SERVER=SRVDWHITP01;DATABASE=EDW_SPOKE;UID=pairwin;PWD=pairwin;TIMEOUT=0')   
+        cnxn = pyodbc.connect(self.databasecon)   
         i = 0
         for chunk in pd.read_sql(sql, cnxn, chunksize=rowsper) :
             if i == 0:
@@ -244,3 +248,4 @@ class DomoSDK:
     def closeLogger(self):
         logging.shutdown()
         shutil.copy2('DomoUtilLog.log', 'logs/DomoUtilLog'+ str(self.dataname) + '_' + datetime.now().strftime('%Y%m%d_%H_%M') + '.log')
+        os.remove('DomoUtil.log')
