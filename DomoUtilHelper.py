@@ -58,7 +58,8 @@ class DomoSDK:
         self.logger.info('Building Query...')
         with open(path, 'r') as myfile:
             #data=myfile.read().replace('\n', ' ').replace(';', ' ').replace('"', '\"').replace("'", "\'")
-            data = ' '.join(myfile.read().split())
+            #data = ' '.join(myfile.read().split())
+            data = myfile.read();
             return data
         
         
