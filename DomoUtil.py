@@ -23,6 +23,11 @@ def main(args):
             rowsper = 300000
         
         domo = DomoSDK()
+        
+        if args.conn is not None:
+            domo.databasecon = args.conn
+            
+            
         temp_dir = domo.makeTempDir()
         
     
@@ -90,6 +95,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--name", help="Name of Stream you want to create")
     parser.add_argument("-d", "--delete", help="Id of Stream you want to delete")
     parser.add_argument("-r", "--rows", help="Rows per chunk (default is 100000)")
+    parser.add_argument("-x", "--conn", help="Connection String, else use default in config")
     args = parser.parse_args()
     main(args)    
 
